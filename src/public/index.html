@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StockWatch - Automated Low Stock Alert & Inventory Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- Header -->
+    <header class="top-header">
+      <div class="brand-section">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <path d="M16 10a4 4 0 0 1-8 0"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>StockWatch</h1>
+          <p class="subtitle">Google Sheets Automated Inventory Alerting</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="status-pill" id="system-status-pill">
+          <span class="status-dot pulsing"></span>
+          <span id="system-status-text">System Active</span>
+        </div>
+
+        <button id="btn-check-now" class="btn btn-primary">
+          <svg class="spin-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          <svg class="normal-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Check Stock Now
+        </button>
+
+        <button id="btn-send-test" class="btn btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send Test SMS
+        </button>
+
+        <a href="/api/sample-sheet" class="btn btn-outline" download>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Sample Sheet
+        </a>
+      </div>
+    </header>
+
+    <!-- Metrics Cards Grid -->
+    <section class="metrics-grid">
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-title">Monitored SKUs</span>
+          <span class="metric-icon blue">📦</span>
+        </div>
+        <div class="metric-value" id="metric-total-skus">--</div>
+        <div class="metric-footer" id="metric-total-footer">Fetching data...</div>
+      </div>
+
+      <div class="metric-card glass-card danger-border">
+        <div class="metric-header">
+          <span class="metric-title">Low Stock Items</span>
+          <span class="metric-icon red">⚠️</span>
+        </div>
+        <div class="metric-value danger-text" id="metric-low-stock">--</div>
+        <div class="metric-footer" id="metric-low-footer">Requires action</div>
+      </div>
+
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-title">Alerts Dispatched</span>
+          <span class="metric-icon green">💬</span>
+        </div>
+        <div class="metric-value" id="metric-alerts-sent">--</div>
+        <div class="metric-footer" id="metric-alerts-footer">Total notifications sent</div>
+      </div>
+
+      <div class="metric-card glass-card">
+        <div class="metric-header">
+          <span class="metric-title">Active Gateway</span>
+          <span class="metric-icon purple">📱</span>
+        </div>
+        <div class="metric-value small-text" id="metric-gateway">--</div>
+        <div class="metric-footer" id="metric-gateway-recipients">--</div>
+      </div>
+    </section>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="low-stock">
+        ⚠️ Low Stock Items <span class="badge danger-badge" id="badge-low-count">0</span>
+      </button>
+      <button class="tab-btn" data-tab="all-inventory">
+        📋 All Monitored Items (<span id="badge-total-count">0</span>)
+      </button>
+      <button class="tab-btn" data-tab="alert-log">
+        📜 Dispatched Alerts Log (<span id="badge-alert-count">0</span>)
+      </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Section 1: Low Stock Items -->
+      <section id="tab-low-stock" class="tab-content active">
+        <div class="content-header">
+          <div>
+            <h2>Active Low Stock Items</h2>
+            <p>Products currently at or below their reorder threshold requiring purchase orders.</p>
+          </div>
+          <div class="search-box">
+            <input type="text" id="search-low-stock" placeholder="Search low stock items...">
+          </div>
+        </div>
+
+        <div class="table-container glass-card">
+          <table class="data-table" id="table-low-stock">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Stock Level</th>
+                <th>Reorder Threshold</th>
+                <th>Supplier & Contact</th>
+                <th>Last Alerted</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="8" class="loading-cell">Loading low stock items...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 2: All Monitored Inventory -->
+      <section id="tab-all-inventory" class="tab-content">
+        <div class="content-header">
+          <div>
+            <h2>All Monitored SKUs</h2>
+            <p>Live inventory sync from Google Sheet.</p>
+          </div>
+          <div class="search-box">
+            <input type="text" id="search-all-inventory" placeholder="Search product name, SKU, category...">
+          </div>
+        </div>
+
+        <div class="table-container glass-card">
+          <table class="data-table" id="table-all-inventory">
+            <thead>
+              <tr>
+                <th>Product Name</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Current Qty</th>
+                <th>Threshold</th>
+                <th>Unit</th>
+                <th>Supplier</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="9" class="loading-cell">Loading full inventory...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Section 3: Alert Log -->
+      <section id="tab-alert-log" class="tab-content">
+        <div class="content-header">
+          <div>
+            <h2>Dispatched Alert History</h2>
+            <p>Real-time record of low stock notification dispatches via SMS / WhatsApp.</p>
+          </div>
+          <button id="btn-refresh-logs" class="btn btn-outline small-btn">Refresh Logs</button>
+        </div>
+
+        <div class="table-container glass-card">
+          <table class="data-table" id="table-alerts-log">
+            <thead>
+              <tr>
+                <th>Time Sent</th>
+                <th>Product</th>
+                <th>Stock / Threshold</th>
+                <th>Recipient</th>
+                <th>Gateway Provider</th>
+                <th>Status</th>
+                <th>Alert Message Preview</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="7" class="loading-cell">Loading alert logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal for Editing Threshold -->
+    <div id="modal-edit-threshold" class="modal-overlay hidden">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h3>Edit Reorder Threshold</h3>
+          <button class="close-modal" id="btn-close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-subtitle">Update reorder threshold for <strong id="modal-product-name">Product</strong> (<span id="modal-product-sku">SKU</span>). This value will write back to your Google Sheet.</p>
+          
+          <div class="form-group">
+            <label for="input-new-threshold">New Reorder Threshold</label>
+            <input type="number" id="input-new-threshold" min="0" value="10">
+            <small class="form-help">Alert will trigger when stock level drops to or below this number.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="input-quick-qty">Current Quantity (Demo / Quick Adjust)</label>
+            <input type="number" id="input-quick-qty" min="0" value="0">
+            <small class="form-help">Adjust stock quantity to test alert triggering in real-time.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btn-cancel-modal">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-threshold">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
